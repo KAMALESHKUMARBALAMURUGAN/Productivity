@@ -9,6 +9,7 @@ def save_to_excel():
     time_period = time_period_var.get()
     comment = comment_text.get("1.0", "end-1c")
     win_or_lost = win_or_lost_var.get()
+    excel_path_selected = excel_path_var.get()  # Get selected path
 
     if not date or not time_period or not win_or_lost or not comment.strip():
         messagebox.showwarning("Input Error", "All fields must be filled out!")
@@ -23,12 +24,12 @@ def save_to_excel():
 
     df = pd.DataFrame(data)
 
-    if not os.path.exists(excel_path.get()):
-        df.to_excel(excel_path.get(), index=False)
+    if not os.path.exists(excel_path_selected):
+        df.to_excel(excel_path_selected, index=False)
     else:
-        existing_df = pd.read_excel(excel_path.get())
+        existing_df = pd.read_excel(excel_path_selected)
         new_df = pd.concat([existing_df, df], ignore_index=True)
-        new_df.to_excel(excel_path.get(), index=False)
+        new_df.to_excel(excel_path_selected, index=False)
 
     messagebox.showinfo("Success", "Data saved successfully!")
 
@@ -70,11 +71,18 @@ win_or_lost_label.grid(row=3, column=0, padx=10, pady=10)
 win_or_lost_menu = ttk.Combobox(root, textvariable=win_or_lost_var, values=["Win", "Lost"])
 win_or_lost_menu.grid(row=3, column=1, padx=10, pady=10)
 
-# Excel Path Entry
+# Excel Path Dropdown
+excel_paths = [
+    r"C:\Users\kamalesh.kb\KAMALESH_PRODUCTIVITY\Productivity\productivity_log.xlsx",
+    r"C:/Users/YourUser/Path2.xlsx",
+    r"C:/Users/YourUser/Path3.xlsx"
+]  # Define your paths here
+
+excel_path_var = tk.StringVar()
 excel_path_label = tk.Label(root, text="Excel Path:")
 excel_path_label.grid(row=4, column=0, padx=10, pady=10)
-excel_path = tk.Entry(root, width=40)
-excel_path.grid(row=4, column=1, padx=10, pady=10)
+excel_path_menu = ttk.Combobox(root, textvariable=excel_path_var, values=excel_paths)
+excel_path_menu.grid(row=4, column=1, padx=10, pady=10)
 
 # Save Button
 save_button = tk.Button(root, text="Save", command=save_to_excel)

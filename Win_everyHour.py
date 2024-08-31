@@ -66,9 +66,9 @@ comment_text.grid(row=2, column=1, padx=10, pady=10)
 
 # Win or Lost Dropdown
 win_or_lost_var = tk.StringVar()
-win_or_lost_label = tk.Label(root, text="Win/Lost:")
+win_or_lost_label = tk.Label(root, text="Score(1-5):")
 win_or_lost_label.grid(row=3, column=0, padx=10, pady=10)
-win_or_lost_menu = ttk.Combobox(root, textvariable=win_or_lost_var, values=["Win", "Lost"])
+win_or_lost_menu = ttk.Combobox(root, textvariable=win_or_lost_var, values=["1","2","3","4","5"])
 win_or_lost_menu.grid(row=3, column=1, padx=10, pady=10)
 
 # Excel Path Dropdown

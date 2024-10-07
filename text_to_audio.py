@@ -1,21 +1,52 @@
 import os
+from tkinter import Tk, Label, Entry, Button, Text, filedialog, messagebox
 from gtts import gTTS
 
-# Input text
-text = "I was a bit happy with the last mission impossible movie as it was average but not too good!"
+# Function to save the text as speech
+def save_as_audio():
+    # Get the text from the Text box
+    text = text_box.get("1.0", "end").strip()
+    
+    # Get the filename from the entry
+    file_name = file_name_entry.get()
+    
+    # Check if user has entered both text and file name
+    if not text or not file_name:
+        messagebox.showerror("Error", "Please enter both text and filename!")
+        return
+    
+    # Get the folder path where user wants to save the file
+    folder_path = filedialog.askdirectory(title="Select folder to save the file")
+    if not folder_path:  # If user doesn't select a folder
+        messagebox.showerror("Error", "Please select a folder!")
+        return
+    
+    # Create the full file path
+    file_path = os.path.join(folder_path, file_name + ".mp3")
+    
+    # Convert text to speech and save it
+    tts = gTTS(text)
+    tts.save(file_path)
+    
+    messagebox.showinfo("Success", f"Audio saved at: {file_path}")
 
-# Convert text to speech
-tts = gTTS(text)
+# Initialize the Tkinter window
+root = Tk()
+root.title("Text to Speech Converter")
+root.geometry("400x300")
 
-# Specify the folder where the file will be saved
-folder_path = r"D:\second_life\Youtube_audio_pythonCreated"  # Replace this with your desired folder location
-file_name = "output.mp3"
+# Label and Text box for input text
+Label(root, text="Enter the text:").pack(pady=10)
+text_box = Text(root, height=5, width=40)
+text_box.pack(pady=10)
 
-# Create the folder if it doesn't exist
-os.makedirs(folder_path, exist_ok=True)
+# Label and Entry for filename
+Label(root, text="Enter the filename (without extension):").pack(pady=5)
+file_name_entry = Entry(root, width=30)
+file_name_entry.pack(pady=5)
 
-# Save the audio file in the specified folder
-file_path = os.path.join(folder_path, file_name)
-tts.save(file_path)
+# Save button to trigger the save_as_audio function
+Button(root, text="Convert and Save", command=save_as_audio).pack(pady=20)
 
-print(f"Audio saved at: {file_path}")
+# Start the Tkinter event loop
+root.mainloop()

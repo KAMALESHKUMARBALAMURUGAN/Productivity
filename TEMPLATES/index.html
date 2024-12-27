@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eisenhower Matrix Manager</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        .container { width: 800px; margin: 0 auto; }
+        .header { text-align: center; margin-bottom: 20px; }
+        .task-input { margin-bottom: 20px; }
+        .matrix-table { width: 100%; border-collapse: collapse; }
+        .matrix-table th, .matrix-table td { border: 1px solid #000; padding: 10px; text-align: center; }
+        .matrix-table th { background-color: #f0f0f0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Eisenhower Matrix Manager</h1>
+            <p id="current-date"></p>
+        </div>
+        <div class="task-input">
+            <label for="task">Enter Task Description:</label>
+            <input type="text" id="task">
+            <label for="category">Select Category:</label>
+            <select id="category">
+                <option value="Urgent & Important(DO FIRST)">Urgent & Important(DO FIRST)</option>
+                <option value="Not Urgent & Important(SCHEDULE)">Not Urgent & Important(SCHEDULE)</option>
+                <option value="Urgent & Not Important(DELEGATE)">Urgent & Not Important(DELEGATE)</option>
+                <option value="Not Urgent & Not Important(DON'T DO)">Not Urgent & Not Important(DON'T DO)</option>
+            </select>
+            <button onclick="addTask()">Add Task</button>
+            <!-- <button onclick="removeTask()">Remove Task</button> -->
+            <button onclick="takeScreenshot()">Take Screenshot</button>
+        </div>
+        <table class="matrix-table">
+            <thead>
+                <tr>
+                    <th>Important</th>
+                    <th>Not Important</th>
+                    <td>VALUE/PRIORITY</td>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td id="Urgent & Important(DO FIRST)"></td>
+                    <td id="Urgent & Not Important(DELEGATE)"></td>
+                    <td>Urgent</td>
+                </tr>
+                <tr>
+                    <td id="Not Urgent & Important(SCHEDULE)"></td>
+                    <td id="Not Urgent & Not Important(DON'T DO)"></td>
+                    <td>Not Urgent</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <script>
+        document.getElementById('current-date').innerText = "{{ current_date }}";
+
+        function updateTable(tasks) {
+            for (const category in tasks) {
+                const cell = document.getElementById(category);
+                cell.innerHTML = tasks[category].map((task, index) => `${index + 1}. ${task}`).join('<br>');
+            }
+        }
+
+        function addTask() {
+            const task = document.getElementById('task').value;
+            const category = document.getElementById('category').value;
+            fetch('/add_task', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ task, category })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    updateTable(data.tasks);
+                    document.getElementById('task').value = '';
+                } else {
+                    alert('Failed to add task');
+                }
+            });
+        }
+
+        function removeTask() {
+            const task = prompt('Enter task to remove:');
+            const category = document.getElementById('category').value;
+            fetch('/remove_task', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ task, category })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    updateTable(data.tasks);
+                } else {
+                    alert('Failed to remove task');
+                }
+            });
+        }
+       
+        
+        async function takeScreenshot() {
+        html2canvas(document.body).then(async canvas => {
+            let date = new Date();
+            let options = { weekday: 'long', day: '2-digit', month: '2-digit', year: '2-digit' };
+            let formattedDate = date.toLocaleDateString('en-GB', options).replace(/\//g, '-');
+            let fileName = `${formattedDate}.png`;
+
+            try {
+                // Prompt user to select save location
+                const handle = await window.showSaveFilePicker({
+                    suggestedName: fileName,
+                    types: [{
+                        description: 'PNG Image',
+                        accept: { 'image/png': ['.png'] }
+                    }]
+                });
+
+                // Write the screenshot to the selected location
+                const writable = await handle.createWritable();
+                let blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+                await writable.write(blob);
+                await writable.close();
+                alert('Screenshot saved successfully!');
+            } catch (err) {
+                console.error('Screenshot save canceled or failed', err);
+            }
+        });
+    }
+
+
+
+        fetch('/tasks')
+            .then(response => response.json())
+            .then(data => updateTable(data));
+    </script>
+</body>
+</html>

@@ -22,7 +22,7 @@ def send_single_message(bus, message_id, byte_value):
         message = can.Message(arbitration_id=message_id, data=data, is_extended_id=True)
         # Send the message
         bus.send(message)
-        print(f"Sent message: ID={hex(message_id)}, Data={data}")
+        # print(f"Sent message: ID={hex(message_id)}, Data={data}")
     except Exception as e:
         print(f"Error sending message: {e}")
 
@@ -39,8 +39,12 @@ if __name__ == "__main__":
 
     if bus:
            # Send the single message N times
-        for _ in range(N):
+        for i in range(N):
+            print("Number of messages sent",i+1)
             send_single_message(bus, MESSAGE_ID, BYTE_VALUE)
-            time.sleep(0.1)  # Optional: Add a delay between messages
+            if i == 4:  # Add a 250 ms break after the 5th message
+                time.sleep(2.00)
+            else:
+             time.sleep(0.1)  # Optional: Add a delay between messages
         # Close the bus connection
         bus.shutdown()

@@ -14,15 +14,13 @@ def initialize_bus(channel="PCAN_USBBUS1", bitrate=500000):
         print(f"Error initializing PCAN bus: {e}")
         return None
 
-def send_single_message(bus, message_id, byte_value):
-    """Send a single CAN message with the specified ID and byte value."""
+def send_single_message(bus, message_id, data):
+    """Send a single CAN message with the specified ID and data."""
     try:
-        # Create a CAN message with the specified byte value at the last position
-        data = [0x00, byte_value, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
         message = can.Message(arbitration_id=message_id, data=data, is_extended_id=True)
         # Send the message
         bus.send(message)
-        # print(f"Sent message: ID={hex(message_id)}, Data={data}")
+        print(f"Sent message: ID={hex(message_id)}, Data={data}")
     except Exception as e:
         print(f"Error sending message: {e}")
 
@@ -30,21 +28,25 @@ if __name__ == "__main__":
     # Configuration
     CHANNEL = "PCAN_USBBUS1"  # Replace with your actual PCAN channel
     BITRATE = 500000          # CAN bitrate
-    MESSAGE_ID = 0x18530902   # New CAN message ID
-    BYTE_VALUE = 0x24         # Byte value to be set at the last position
-    N=10
+    MESSAGE_ID1 = 0x18530902  # First CAN message ID
+    DATA1 = [0x00, 0x24, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]  # Data for first message
+    MESSAGE_ID2 = 0x00000008  # Second CAN message ID
+    DATA2 = [0x63, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]  # Data for second message
+    N = 10                    # Number of times to send the messages
 
     # Initialize the bus
     bus = initialize_bus(CHANNEL, BITRATE)
 
     if bus:
-           # Send the single message N times
+        # Send the messages N times
         for i in range(N):
-            print("Number of messages sent",i+1)
-            send_single_message(bus, MESSAGE_ID, BYTE_VALUE)
+            print("Number of messages sent", i + 1)
+            send_single_message(bus, MESSAGE_ID1, DATA1)
+            send_single_message(bus, MESSAGE_ID2, DATA2)
             if i == 4:  # Add a 250 ms break after the 5th message
                 time.sleep(2.00)
             else:
-             time.sleep(0.1)  # Optional: Add a delay between messages
+                time.sleep(0.1)  # Optional: Add a delay between messages
+
         # Close the bus connection
         bus.shutdown()

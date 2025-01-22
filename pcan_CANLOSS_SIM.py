@@ -32,12 +32,15 @@ if __name__ == "__main__":
     BITRATE = 500000          # CAN bitrate
     MESSAGE_ID = 0x18530902   # New CAN message ID
     BYTE_VALUE = 0x24         # Byte value to be set at the last position
+    N=10
 
     # Initialize the bus
     bus = initialize_bus(CHANNEL, BITRATE)
 
     if bus:
-        # Send the single message
-        send_single_message(bus, MESSAGE_ID, BYTE_VALUE)
+           # Send the single message N times
+        for _ in range(N):
+            send_single_message(bus, MESSAGE_ID, BYTE_VALUE)
+            time.sleep(0.1)  # Optional: Add a delay between messages
         # Close the bus connection
         bus.shutdown()

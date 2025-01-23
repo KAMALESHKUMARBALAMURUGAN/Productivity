@@ -21,20 +21,14 @@ def send_single_message(bus, message_id, data):
     except Exception as e:
         print(f"Error sending message: {e}")
 
-def send_message_id1(bus, message_id, data, interval):
-    """Thread for continuously sending MESSAGE_ID1."""
-    while True:
-        send_single_message(bus, message_id, data)
-        time.sleep(interval)  # Constant interval for MESSAGE_ID1
-
-def send_message_id2(bus, message_id, data, base_interval, sleep_time):
-    """Thread for sending MESSAGE_ID2 with periodic delay."""
+def send_message_id1(bus, message_id, data, base_interval, sleep_time):
+    """Thread for sending MESSAGE_ID1 with periodic delay (now the one being delayed)."""
     i = 0
     count = 1
 
     while True:
         if i == 50 * count:
-            print("Entered delay for MESSAGE_ID2")
+            print("Entered delay for MESSAGE_ID1")
             time.sleep(sleep_time * 22)  # Only this thread experiences delay
             print("CAN loss Duration->", sleep_time * count)
             print("count->", count)
@@ -49,8 +43,14 @@ def send_message_id2(bus, message_id, data, base_interval, sleep_time):
                 print("Reset complete. Starting again.")
 
         send_single_message(bus, message_id, data)
-        time.sleep(base_interval)  # Regular interval for MESSAGE_ID2
+        time.sleep(base_interval)  # Regular interval for MESSAGE_ID1
         i += 1
+
+def send_message_id2(bus, message_id, data, interval):
+    """Thread for continuously sending MESSAGE_ID2."""
+    while True:
+        send_single_message(bus, message_id, data)
+        time.sleep(interval)  # Constant interval for MESSAGE_ID2
 
 if __name__ == "__main__":
     # Configuration
@@ -62,15 +62,15 @@ if __name__ == "__main__":
     DATA2 = [0x63, 0x00, 0x00, 0x00, 0x00, 0x64, 0x00, 0x00]
     
     BASE_INTERVAL = 0.25  # Regular time interval for sending messages
-    SLEEP_TIME = 0.25  # Initial delay for MESSAGE_ID2 when `i == 50 * count`
+    SLEEP_TIME = 0.25  # Initial delay for MESSAGE_ID1 when `i == 50 * count`
 
     # Initialize the bus
     bus = initialize_bus(CHANNEL, BITRATE)
 
     if bus:
         # Create separate threads for each message
-        thread1 = threading.Thread(target=send_message_id1, args=(bus, MESSAGE_ID1, DATA1, BASE_INTERVAL))
-        thread2 = threading.Thread(target=send_message_id2, args=(bus, MESSAGE_ID2, DATA2, BASE_INTERVAL, SLEEP_TIME))
+        thread1 = threading.Thread(target=send_message_id1, args=(bus, MESSAGE_ID1, DATA1, BASE_INTERVAL, SLEEP_TIME))
+        thread2 = threading.Thread(target=send_message_id2, args=(bus, MESSAGE_ID2, DATA2, BASE_INTERVAL))
 
         # Start threads
         thread1.start()

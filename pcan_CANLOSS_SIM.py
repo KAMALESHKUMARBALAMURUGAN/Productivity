@@ -20,7 +20,7 @@ def send_single_message(bus, message_id, data):
         message = can.Message(arbitration_id=message_id, data=data, is_extended_id=True)
         # Send the message
         bus.send(message)
-        # print(f"Sent message: ID={hex(message_id)}, Data={data}")
+        print(f"Sent message: ID={hex(message_id)}, Data={data}")
     except Exception as e:
         print(f"Error sending message: {e}")
 
@@ -31,8 +31,8 @@ if __name__ == "__main__":
     MESSAGE_ID1 = 0x18530902  # First CAN message ID
     DATA1 = [0x00, 0x24, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]  # Data for first message
     MESSAGE_ID2 = 0x00000008  # Second CAN message ID
-    DATA2 = [0x63, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]  # Data for second message
-    N = 1000                    # Number of times to send the messages
+    DATA2 = [0x63, 0x00, 0x00, 0x00, 0x00, 0x64, 0x00, 0x00]  # Data for second message
+    N =1000                    # Number of times to send the messages
     sleep_time = 0.25
 
     # Initialize the bus
@@ -40,21 +40,24 @@ if __name__ == "__main__":
 
     if bus:
         count = 1
-        # Send the messages N times
-        for i in range(N):
+        i = 0
+        while True:
             send_single_message(bus, MESSAGE_ID1, DATA1)
             send_single_message(bus, MESSAGE_ID2, DATA2)
             if i == 50 * count:
+                print("Entered")
                 time.sleep(sleep_time * count)
-                print("CAN loss Duration->",sleep_time * count)
+                print("CAN loss Duration->", sleep_time * count)
                 print("count->", count)
                 count += 1
-                print("Number of messages sent", i+1)
-                
-                
-                
+                print("Number of messages sent", i + 1)
             else:
-                time.sleep(0.1)  # Optional: Add a delay between messages
+                time.sleep(0.25)  # Optional: Add a delay between messages
+
+            i += 1
+            if i == N:
+                i = 0
+                count = 1
 
         # Close the bus connection
         bus.shutdown()

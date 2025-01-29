@@ -20,8 +20,12 @@ def process_file(input_file):
     # Calculate the time difference in seconds and create a new column 'time_diff'
     df['time_diff'] = df['time'].diff().dt.total_seconds()
 
+    # Count the number of times 'time_diff' is greater than 30, ignoring NaN values
+    count_greater_than_30 = df['time_diff'].dropna().gt(30).sum()
+
     # Print the dataframe to show the output
     print(df)
+    print(f"Number of times 'time_diff' is greater than 30: {count_greater_than_30}")
 
     # Save the dataframe to the appropriate file format
     if output_file.endswith('.csv'):
@@ -29,7 +33,7 @@ def process_file(input_file):
     elif output_file.endswith('.xlsx'):
         df.to_excel(output_file, index=False)
 
-    messagebox.showinfo("Success", f"File processed and saved as {output_file}")
+    messagebox.showinfo("Success", f"File processed and saved as {output_file}\nNumber of times 'time_diff' is greater than 30: {count_greater_than_30}")
 
 def browse_file():
     input_file = filedialog.askopenfilename(filetypes=[("All files", "*.*"), ("CSV files", "*.csv"), ("Excel files", "*.xlsx")])

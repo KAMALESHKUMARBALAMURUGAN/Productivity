@@ -33,6 +33,7 @@ def process_file(input_file):
             if idx > 0:
                 time_diff_minutes = (df.loc[idx, 'updated_time'] - df.loc[idx - 1, 'updated_time']).total_seconds() / 60
                 time_diff_message = f"Time(idx): {df.loc[idx, 'updated_time']}, Time(idx-1): {df.loc[idx - 1, 'updated_time']}"
+    Available_Message_count =df['CANTime'].count()
 
     # Save the dataframe to the appropriate file format
     if output_file.endswith('.csv'):
@@ -40,7 +41,7 @@ def process_file(input_file):
     elif output_file.endswith('.xlsx'):
         df.to_excel(output_file, index=False)
 
-    result_message = f"File processed and saved as {output_file}\nNumber of times 'time_diff' is greater than 30: {count_greater_than_30}"
+    result_message = f"File processed and saved as {output_file}\nAvailable message count: {Available_Message_count}\nNumber of times 'time_diff' is greater than 30: {count_greater_than_30}"
     if time_diff_minutes is not None:
         result_message += f"\nTime difference in minutes when the bmsStatVal '7': {time_diff_minutes:.2f}"
     messagebox.showinfo("Success", result_message)

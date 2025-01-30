@@ -2,6 +2,7 @@ import pandas as pd
 import os
 import tkinter as tk
 from tkinter import filedialog, messagebox
+import openpyxl
 
 def process_file(input_file):
     # Determine the file extension and read the file accordingly
@@ -33,7 +34,9 @@ def process_file(input_file):
             if idx > 0:
                 time_diff_minutes = (df.loc[idx, 'updated_time'] - df.loc[idx - 1, 'updated_time']).total_seconds() / 60
                 time_diff_message = f"Time(idx): {df.loc[idx, 'updated_time']}, Time(idx-1): {df.loc[idx - 1, 'updated_time']}"
-    Available_Message_count =df['CANTime'].count()
+
+    # Count the number of instances of CANTime
+    can_time_count = df['CANTime'].count()
 
     # Save the dataframe to the appropriate file format
     if output_file.endswith('.csv'):
@@ -41,10 +44,34 @@ def process_file(input_file):
     elif output_file.endswith('.xlsx'):
         df.to_excel(output_file, index=False)
 
-    result_message = f"File processed and saved as {output_file}\nAvailable message count: {Available_Message_count}\nNumber of times 'time_diff' is greater than 30: {count_greater_than_30}"
-    if time_diff_minutes is not None:
-        result_message += f"\nTime difference in minutes when the bmsStatVal '7': {time_diff_minutes:.2f}"
+    # Prepare analysis data
+    analysis_data = {
+        "Available message count": can_time_count,
+        "Number of times 'time_diff' is greater than 30": count_greater_than_30,
+        "Time difference in minutes when the bmsStatVal '7'": f"{time_diff_minutes:.2f}" if time_diff_minutes is not None else "N/A"
+    }
+
+    # Create a new Excel workbook
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Analysis Results"
+
+        # Add the input file name to the first row
+    ws.cell(row=1, column=1, value="File name")
+    ws.cell(row=1, column=2, value=os.path.basename(input_file))
+
+
+    # Populate Excel sheet with analysis data
+    for i, (key, value) in enumerate(analysis_data.items(), start=2):
+        ws.cell(row=i, column=1, value=key)
+        ws.cell(row=i, column=2, value=value)
+
+    # Save the Excel workbook
+    excel_output_file = os.path.join(os.path.dirname(input_file), 'Analysis_Results.xlsx')
+    wb.save(excel_output_file)
+    result_message = f"Analysis results saved to {excel_output_file}"
     messagebox.showinfo("Success", result_message)
+    print(f"Analysis results saved to {excel_output_file}")
 
 def browse_file():
     input_file = filedialog.askopenfilename(filetypes=[("All files", "*.*"), ("CSV files", "*.csv"), ("Excel files", "*.xlsx")])
@@ -58,27 +85,29 @@ def submit_file():
         try:
             process_file(input_file)
         except Exception as e:
-            messagebox.showerror("Error", str(e))
+            messagebox.showerror("Error Present", str(e))
 
 # Create the main window
 root = tk.Tk()
 root.title("Battery Uptime Accuracy Finder")
+root.configure(bg='red')
 
 # Instruction label
-instruction_label = tk.Label(root, text="Click browse to choose the input file")
+instruction_label = tk.Label(root, text="Click browse to choose the input file", bg='red', fg='white',font=('Arial', 14))
 instruction_label.pack(pady=10)
 
 # Create a button to browse for the input file
-browse_button = tk.Button(root, text="Browse", command=browse_file)
+browse_button = tk.Button(root, text="Browse", command=browse_file, bg='black', fg='white',font=('Arial', 14))
 browse_button.pack(pady=10)
 
 # Label to display the selected file path
-file_path_label = tk.Label(root, text="")
+file_path_label = tk.Label(root, text="", bg='black', fg='white',font=('Arial', 14))
 file_path_label.pack(pady=5)
 
 # Create a submit button to process the file
-submit_button = tk.Button(root, text="Submit", command=submit_file, state=tk.DISABLED)
+submit_button = tk.Button(root, text="Submit", command=submit_file, state=tk.DISABLED, bg='black', fg='white',font=('Arial', 14))
 submit_button.pack(pady=10)
+
 
 # Run the Tkinter event loop
 root.mainloop()

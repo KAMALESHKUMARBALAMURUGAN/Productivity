@@ -5,18 +5,15 @@ from tkinter import filedialog, messagebox
 import openpyxl
 import traceback
 
-def process_file(input_file, ws, start_col):
-     # Ignore files that start with "ana"
-    if os.path.basename(input_file).startswith('Ana'):
-        return
+def process_file(input_file):
+    # Ignore files that start with "ana"
+    if os.path.basename(input_file).startswith('Ana'):       return None, None
 
     # Determine the file extension and read the file accordingly
     if input_file.endswith('.csv'):
         df = pd.read_csv(input_file)
-        output_file = os.path.join(os.path.dirname(input_file), 'Updated.csv')
     elif input_file.endswith('.xlsx'):
         df = pd.read_excel(input_file)
-        output_file = os.path.join(os.path.dirname(input_file), 'Updated.xlsx')
     else:
         raise ValueError("Unsupported file format. Please provide a .csv or .xlsx file.")
 
@@ -31,40 +28,73 @@ def process_file(input_file, ws, start_col):
 
     # Calculate time_diff in minutes for rows where bmsStatVal is '7'
     time_diff_minutes = None
-    time_diff_message = ""
     if 'bmsStatVal' in df.columns:
         bms_stat_val_7 = df[df['bmsStatVal'] == 7]
         if not bms_stat_val_7.empty:
             idx = bms_stat_val_7.index[0]
             if idx > 0:
                 time_diff_minutes = (df.loc[idx, 'updated_time'] - df.loc[idx - 1, 'updated_time']).total_seconds() / 60
-                time_diff_message = f"Time(idx): {df.loc[idx, 'updated_time']}, Time(idx-1): {df.loc[idx - 1, 'updated_time']}"
 
     # Count the number of instances of CANTime
     can_time_count = df['CANTime'].count()
 
-    # Save the dataframe to the appropriate file format
-    # if output_file.endswith('.csv'):
-    #     df.to_csv(output_file, index=False)
-    # elif output_file.endswith('.xlsx'):
-    #     df.to_excel(output_file, index=False)
+    # Count the number of instances of each bmsStatus
+    bms_status_counts = df['bmsStatus'].value_counts().to_dict()
+
+    # Track continuous segments of 'DisCharging' and 'Charging'
+    discharge_segments = []
+    charging_segments = []
+    current_discharge_count = 0
+    current_charging_count = 0
+    in_discharge = False
+    in_charging = False
+
+    for status in df['bmsStatus']:
+        if status == 'DisCharging':
+            if not in_discharge:
+                in_discharge = True
+                current_discharge_count = 1
+            else:
+                current_discharge_count += 1
+        else:
+            if in_discharge:
+                discharge_segments.append(current_discharge_count)
+                in_discharge = False
+
+        if status == 'Charging':
+            if not in_charging:
+                in_charging = True
+                current_charging_count = 1
+            else:
+                current_charging_count += 1
+        else:
+            if in_charging:
+                charging_segments.append(current_charging_count)
+                in_charging = False
+
+    # Add the last segment if it ends at the last row
+    if in_discharge:
+        discharge_segments.append(current_discharge_count)
+    if in_charging:
+        charging_segments.append(current_charging_count)
 
     # Prepare analysis data
     analysis_data = {
         "Available message count": can_time_count,
         "Number of times 'time_diff' is greater than 30": count_greater_than_30,
-        "Time difference in minutes when the bmsStatVal '7'": f"{time_diff_minutes:.2f}" if time_diff_minutes is not None else "N/A"
+        "Time difference in minutes when the bmsStatVal '7'": f"{time_diff_minutes:.2f}" if time_diff_minutes is not None else "N/A",
+        "Idle count": bms_status_counts.get('Idle', 0),
+        "Total DisCharging count": bms_status_counts.get('DisCharging', 0),
+        "Total Charging count": bms_status_counts.get('Charging', 0)
     }
 
-    # Populate Excel sheet with analysis data
-    if start_col == 1:
-        ws.cell(row=1, column=start_col, value="File name")
-        for i, key in enumerate(analysis_data.keys(), start=2):
-            ws.cell(row=i, column=start_col, value=key)
+    # Add discharge and charging segments to analysis data
+    for i, count in enumerate(discharge_segments, start=1):
+        analysis_data[f"Discharge_{i}"] = count
+    for i, count in enumerate(charging_segments, start=1):
+        analysis_data[f"Charging_{i}"] = count
 
-    ws.cell(row=1, column=start_col + 1, value=os.path.basename(input_file))
-    for i, value in enumerate(analysis_data.values(), start=2):
-        ws.cell(row=i, column=start_col + 1, value=value)
+    return analysis_data, os.path.basename(input_file)
 
 def browse_folder():
     folder_path = filedialog.askdirectory()
@@ -81,13 +111,44 @@ def submit_folder():
             ws = wb.active
             ws.title = "Analysis Results"
 
-            # Process each file in the folder
-            start_col = 1
+            # Process each file in the folder and collect analysis data
+            all_analysis_data = []
+            max_discharge_segments = 0
+            max_charging_segments = 0
+
             for file_name in os.listdir(folder_path):
                 input_file = os.path.join(folder_path, file_name)
                 if input_file.endswith('.csv') or input_file.endswith('.xlsx'):
-                    process_file(input_file, ws, start_col)
-                    start_col += 1  # Move to the next column for the next file
+                    analysis_data, file_basename = process_file(input_file)
+                    if analysis_data:
+                        all_analysis_data.append((analysis_data, file_basename))
+                        max_discharge_segments = max(max_discharge_segments, len([key for key in analysis_data.keys() if key.startswith("Discharge_")]))
+                        max_charging_segments = max(max_charging_segments, len([key for key in analysis_data.keys() if key.startswith("Charging_")]))
+
+            # Create a consistent set of keys
+            consistent_keys = [
+                "Available message count",
+                "Number of times 'time_diff' is greater than 30",
+                "Time difference in minutes when the bmsStatVal '7'",
+                "Idle count",
+                "Total DisCharging count",
+                "Total Charging count"
+            ]
+            consistent_keys += [f"Discharge_{i}" for i in range(1, max_discharge_segments + 1)]
+            consistent_keys += [f"Charging_{i}" for i in range(1, max_charging_segments + 1)]
+
+            # Populate Excel sheet with consistent keys
+            ws.cell(row=1, column=1, value="File name")
+            for i, key in enumerate(consistent_keys, start=2):
+                ws.cell(row=i, column=1, value=key)
+
+            # Populate Excel sheet with analysis data
+            start_col = 2
+            for analysis_data, file_basename in all_analysis_data:
+                ws.cell(row=1, column=start_col, value=file_basename)
+                for i, key in enumerate(consistent_keys, start=2):
+                    ws.cell(row=i, column=start_col, value=analysis_data.get(key, "N/A"))
+                start_col += 1
 
             # Save the Excel workbook
             excel_output_file = os.path.join(folder_path, 'Analysis_Results.xlsx')
@@ -108,7 +169,7 @@ root.configure(bg='red')
 instruction_label = tk.Label(root, text="Click browse to choose the input folder", bg='red', fg='white', font=('Arial', 14))
 instruction_label.pack(pady=10)
 
-instruction_label2 =tk.Label(root, text = "Ensure that only the files to be analyzed are in the root folder and remove the 'ANALYSIS FILE' if it exists", bg='red', fg='white', font=('Arial', 14))
+instruction_label2 = tk.Label(root, text="Ensure that only the files to be analyzed are in the root folder and remove the 'ANALYSIS FILE' if it exists", bg='red', fg='white', font=('Arial', 14))
 instruction_label2.pack(pady=10)
 
 # Create a button to browse for the input folder

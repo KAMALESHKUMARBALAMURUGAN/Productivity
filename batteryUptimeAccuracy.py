@@ -7,7 +7,8 @@ import traceback
 
 def process_file(input_file):
     # Ignore files that start with "ana"
-    if os.path.basename(input_file).startswith('Ana'):       return None, None
+    if os.path.basename(input_file).startswith('Ana'):
+        return None, None
 
     # Determine the file extension and read the file accordingly
     if input_file.endswith('.csv'):
@@ -26,20 +27,38 @@ def process_file(input_file):
     # Count the number of times 'time_diff' is greater than 30, ignoring NaN values
     count_greater_than_30 = df['time_diff'].dropna().gt(30).sum()
 
-    # Calculate time_diff in minutes for rows where bmsStatVal is '7'
-    time_diff_minutes = None
+    # Calculate cumulative time difference in minutes for segments where bmsStatVal starts with 0 and ends with 7
+    cumulative_time_diff_minutes = 0
     if 'bmsStatVal' in df.columns:
-        bms_stat_val_7 = df[df['bmsStatVal'] == 7]
-        if not bms_stat_val_7.empty:
-            idx = bms_stat_val_7.index[0]
-            if idx > 0:
-                time_diff_minutes = (df.loc[idx, 'updated_time'] - df.loc[idx - 1, 'updated_time']).total_seconds() / 60
+        in_segment = False
+        segment_start_index = None
+        for index, row in df.iterrows():
+            if row['bmsStatVal'] == 0 and not in_segment:
+                in_segment = True
+                segment_start_index = index
+            elif row['bmsStatVal'] == 7 and in_segment:
+                segment_end_index = index
+                segment_df = df.loc[segment_start_index:segment_end_index]
+                cumulative_time_diff_minutes += segment_df['time_diff'].sum() / 60
+                in_segment = False
 
     # Count the number of instances of CANTime
     can_time_count = df['CANTime'].count()
 
     # Count the number of instances of each bmsStatus
     bms_status_counts = df['bmsStatus'].value_counts().to_dict()
+
+
+    # Calculate ideal time in minutes and ideal time count
+    ideal_time_mins = int(1440 - cumulative_time_diff_minutes)
+    # print("Mins:",ideal_time_mins)
+    ideal_time_count = ideal_time_mins * 2
+    # print("Count:",ideal_time_count)
+
+    
+
+    # print("Ideal Count",ideal_time_count)
+    # print("Ideal Time",ideal_time_mins)
 
     # Track continuous segments of 'DisCharging' and 'Charging'
     discharge_segments = []
@@ -78,14 +97,21 @@ def process_file(input_file):
     if in_charging:
         charging_segments.append(current_charging_count)
 
+    print("can_time_count",can_time_count)
+    print("ideal_time_count",ideal_time_count)
+    print("ideal_time_mins",ideal_time_mins)
+
     # Prepare analysis data
     analysis_data = {
+        "Ideal Time (Minutes)": ideal_time_mins,
+        "Ideal Time Count": ideal_time_count,
         "Available message count": can_time_count,
         "Number of times 'time_diff' is greater than 30": count_greater_than_30,
-        "Time difference in minutes when the bmsStatVal '7'": f"{time_diff_minutes:.2f}" if time_diff_minutes is not None else "N/A",
+        "Cumulative time difference in minutes for bmsStatVal 0 or 7": f"{cumulative_time_diff_minutes:.2f}",
         "Idle count": bms_status_counts.get('Idle', 0),
         "Total DisCharging count": bms_status_counts.get('DisCharging', 0),
-        "Total Charging count": bms_status_counts.get('Charging', 0)
+        "Total Charging count": bms_status_counts.get('Charging', 0),
+       
     }
 
     # Add discharge and charging segments to analysis data
@@ -129,7 +155,9 @@ def submit_folder():
             consistent_keys = [
                 "Available message count",
                 "Number of times 'time_diff' is greater than 30",
-                "Time difference in minutes when the bmsStatVal '7'",
+                "Cumulative time difference in minutes for bmsStatVal 0 or 7",
+                "Ideal Time (Minutes)",
+                "Ideal Time Count",
                 "Idle count",
                 "Total DisCharging count",
                 "Total Charging count"

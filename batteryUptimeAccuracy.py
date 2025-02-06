@@ -24,6 +24,21 @@ def process_file(input_file):
     # Calculate the time difference in seconds and create a new column 'time_diff'
     df['time_diff'] = df['updated_time'].diff().dt.total_seconds()
 
+        # Initialize variables
+    sum_time_diff = 0
+    count = 0
+
+    # Iterate through the 'time_diff' column
+    for time_diff in df['time_diff'].dropna():
+        sum_time_diff += time_diff
+        if sum_time_diff >= 30:
+            count += 1
+            sum_time_diff = 0  # Reset the sum
+
+    print("Filtered count---------->",count)
+
+
+
     # Count the number of times 'time_diff' is greater than 30, ignoring NaN values
     count_greater_than_30 = df['time_diff'].dropna().gt(30).sum()
 
@@ -106,6 +121,7 @@ def process_file(input_file):
         "Ideal Time (Minutes)": ideal_time_mins,
         "Ideal Time Count": ideal_time_count,
         "Available message count": can_time_count,
+        "Available Message count(Filtered- data in less than 30 seconds)": count,
         "Number of times 'time_diff' is greater than 30": count_greater_than_30,
         "Cumulative time difference in minutes for bmsStatVal 0 or 7": f"{cumulative_time_diff_minutes:.2f}",
         "Idle count": bms_status_counts.get('Idle', 0),
@@ -154,6 +170,7 @@ def submit_folder():
             # Create a consistent set of keys
             consistent_keys = [
                 "Available message count",
+                "Available Message count(Filtered- data in less than 30 seconds)",
                 "Number of times 'time_diff' is greater than 30",
                 "Cumulative time difference in minutes for bmsStatVal 0 or 7",
                 "Ideal Time (Minutes)",

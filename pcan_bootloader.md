@@ -17,3 +17,15 @@ then send the second occurence one second after first occurence
 Will remove first 14 lines in .trc file
 
 
+
+
+**CEAD BOOTLOADER**
+TOOL MESSAGE 1 : ![alt text](image.png)
+MCU MESSAGE 1 : ![alt text](image-1.png)
+
+Then click flash in the firmware
+
+TOOL MESSAGE 2,3,4: ![alt text](image-2.png)
+
+
+**Mission:** 1 Accomplished: **Firmware Connected** ![alt text](image-3.png)

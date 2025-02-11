@@ -24,9 +24,33 @@ def process_file(input_file):
     # Calculate the time difference in seconds and create a new column 'time_diff'
     df['time_diff'] = df['updated_time'].diff().dt.total_seconds()
 
+
+    start_time = df['updated_time'].iloc[0]
+    
+    end_time = df['updated_time'].iloc[-1]
+    
+
+    #i want to print start time - 12 AM
+    start_of_day = start_time.replace(hour=0, minute=0, second=0, microsecond=0)
+    start_time_delay = start_time - start_of_day
+    
+
+    #i want to print end time - 12 AM
+    end_of_day = end_time.replace(hour=23, minute=59, second=59, microsecond=0)
+    end_time_delay = end_of_day - end_time
+    
+
         # Initialize variables
     sum_time_diff = 0
     count = 0
+
+    # Calculate total delay
+    total_delay =start_time_delay + end_time_delay    
+    
+
+    #convert total delay to minutes
+    total_delay_minutes = total_delay.total_seconds() / 60
+    
 
     # Iterate through the 'time_diff' column
     for time_diff in df['time_diff'].dropna():
@@ -35,12 +59,15 @@ def process_file(input_file):
             count += 1
             sum_time_diff = 0  # Reset the sum
 
-    print("Filtered count---------->",count)
+    
 
 
 
     # Count the number of times 'time_diff' is greater than 30, ignoring NaN values
     count_greater_than_30 = df['time_diff'].dropna().gt(30).sum()
+    
+    count_greater_than_32 = df['time_diff'].dropna().gt(32).sum()
+    count_if_equalTo_31 = df['time_diff'].dropna().eq(31).sum()
 
     # Calculate cumulative time difference in minutes for segments where bmsStatVal starts with 0 and ends with 7
     cumulative_time_diff_minutes = 0
@@ -57,6 +84,7 @@ def process_file(input_file):
                 cumulative_time_diff_minutes += segment_df['time_diff'].sum() / 60
                 in_segment = False
 
+    cumulative_time_diff_minutes_2 = cumulative_time_diff_minutes + total_delay_minutes
     # Count the number of instances of CANTime
     can_time_count = df['CANTime'].count()
 
@@ -65,16 +93,10 @@ def process_file(input_file):
 
 
     # Calculate ideal time in minutes and ideal time count
-    ideal_time_mins = int(1440 - cumulative_time_diff_minutes)
-    # print("Mins:",ideal_time_mins)
-    ideal_time_count = ideal_time_mins * 2
-    # print("Count:",ideal_time_count)
-
+    ideal_time_mins = int(1440 - cumulative_time_diff_minutes - total_delay_minutes)
     
-
-    # print("Ideal Count",ideal_time_count)
-    # print("Ideal Time",ideal_time_mins)
-
+    ideal_time_count = ideal_time_mins * 2
+    
     # Track continuous segments of 'DisCharging' and 'Charging'
     discharge_segments = []
     charging_segments = []
@@ -112,18 +134,21 @@ def process_file(input_file):
     if in_charging:
         charging_segments.append(current_charging_count)
 
-    print("can_time_count",can_time_count)
-    print("ideal_time_count",ideal_time_count)
-    print("ideal_time_mins",ideal_time_mins)
+
+    #convert start_time to hh:mm:ss format
+    start_time = start_time.strftime('%H:%M:%S')
+    end_time = end_time.strftime('%H:%M:%S')
 
     # Prepare analysis data
     analysis_data = {
+        "Start_time": start_time,
+        "End_time": end_time,
         "Ideal Time (Minutes)": ideal_time_mins,
         "Ideal Time Count": ideal_time_count,
         "Available message count": can_time_count,
-        "Available Message count(Filtered- data in less than 30 seconds)": count,
-        "Number of times 'time_diff' is greater than 30": count_greater_than_30,
-        "Cumulative time difference in minutes for bmsStatVal 0 or 7": f"{cumulative_time_diff_minutes:.2f}",
+        "Available Message count(Filtered out the Event based and Counted only the data at and above 30 seconds)": count,
+        "Number of times 'time_diff' is greater than 32": count_greater_than_32,
+        "Sleep Duration (Minutes)": f"{cumulative_time_diff_minutes_2:.2f}",
         "Idle count": bms_status_counts.get('Idle', 0),
         "Total DisCharging count": bms_status_counts.get('DisCharging', 0),
         "Total Charging count": bms_status_counts.get('Charging', 0),
@@ -169,10 +194,12 @@ def submit_folder():
 
             # Create a consistent set of keys
             consistent_keys = [
+                "Start_time",
+                "End_time",
                 "Available message count",
-                "Available Message count(Filtered- data in less than 30 seconds)",
-                "Number of times 'time_diff' is greater than 30",
-                "Cumulative time difference in minutes for bmsStatVal 0 or 7",
+                "Available Message count(Filtered out the Event based and Counted only the data at and above 30 seconds)",
+                "Number of times 'time_diff' is greater than 32",
+                "Sleep Duration (Minutes)",
                 "Ideal Time (Minutes)",
                 "Ideal Time Count",
                 "Idle count",

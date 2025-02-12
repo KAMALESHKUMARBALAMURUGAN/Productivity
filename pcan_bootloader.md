@@ -28,4 +28,17 @@ Then click flash in the firmware
 TOOL MESSAGE 2,3,4: ![alt text](image-2.png)
 
 
-**Mission:** 1 Accomplished: **Firmware Connected** ![alt text](image-3.png)
+**Mission:1** Accomplished: **Firmware Connected** ![alt text](image-3.png)
+
+**Mission:2**: Flashing Done 
+# **Before:**
+![alt text](image-4.png)
+
+# **After**
+![alt text](image-5.png) 
+
+
+
+**Bottleneck:**
+Need to take trace while flashing the firmware, in any ways it can be automated
+

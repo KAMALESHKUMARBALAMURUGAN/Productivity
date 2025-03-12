@@ -3,6 +3,7 @@ import re
 import time
 import tkinter as tk
 from tkinter import filedialog, messagebox
+from tkinter import ttk
 from PIL import Image, ImageTk
 
 # Global variable to store the selected file path
@@ -39,18 +40,22 @@ def parse_trc_file(filename):
             data = [int(byte, 16) for byte in parts[5:5+dlc]]
             can_messages.append((timestamp, message_id, data))
 
-    return can_messages
+    return can_messages, len(cleaned_lines)
 
-def send_can_messages(bus, messages):
+def send_can_messages(bus, messages, progress_bar, progress_label):
     """Send CAN messages through PCAN."""
     ignored_ids = {0x108, 0x112, 0x111, 0x113, 0x110, 0x10f, 0x109, 0x114}
     try:
         start_time = time.time()
         last_sent_times = {}
-        for timestamp, message_id, data in messages:
+        total_messages = len([msg for msg in messages if msg[1] not in ignored_ids])  # Exclude ignored messages
+        sent_messages = 0  # Counter for sent messages
+
+        for i, (timestamp, message_id, data) in enumerate(messages):
             if message_id in ignored_ids:
                 print(f"Ignoring message with ID={hex(message_id)}")
                 continue
+
             if message_id in last_sent_times:
                 time_offset = timestamp - last_sent_times[message_id]
             else:
@@ -62,9 +67,19 @@ def send_can_messages(bus, messages):
             message = can.Message(arbitration_id=message_id, data=data, is_extended_id=True)
             bus.send(message)
             last_sent_times[message_id] = timestamp
+
+            sent_messages += 1  # Increment sent messages counter
+
+            # Update progress bar
+            progress = (sent_messages / total_messages) * 100
+            progress_bar['value'] = progress
+            progress_label.config(text=f"Flashing: {progress:.2f}%")
+            progress_bar.update()
+
     except Exception as e:
         print(f"Error sending CAN messages: {e}")
-
+        messagebox.showerror("Error", f"Error sending CAN messages: {e}")
+        
 def check_mcu_available(bus):
     """Check if the MCU is available by reading a specific CAN message."""
     try:
@@ -82,17 +97,17 @@ def select_binary_file():
     selected_file_path = filedialog.askopenfilename(filetypes=[("Trace Files", "*.trc")])
     print(f"Selected file: {selected_file_path}")
 
-def start_flashing(bus):
+def start_flashing(bus, progress_bar, progress_label):
     """Start the flashing process."""
     if not selected_file_path:
         messagebox.showerror("Error", "No binary file selected.")
         return
-
-    can_messages = parse_trc_file(selected_file_path)
+    
+    can_messages, total_lines = parse_trc_file(selected_file_path)
     print(f"Found {len(can_messages)} CAN messages in the file.")
     print("Starting flashing process...")
     if can_messages:
-        send_can_messages(bus, can_messages)
+        send_can_messages(bus, can_messages, progress_bar, progress_label)
         messagebox.showinfo("Success", "Flashing process completed successfully.")
     else:
         messagebox.showerror("Error", "No CAN messages found in the selected file.")
@@ -101,10 +116,10 @@ def create_main_ui():
     """Create the main Tkinter UI."""
     root = tk.Tk()
     root.title("PCAN Bootloader")
-
+    
     # Display Lectrix logo
     logo = Image.open(r"C:\Users\kamalesh.kb\KAMALESH_PRODUCTIVITY\Productivity\LECTRIX_LOGO.jpg")  # Replace with your actual logo file
-    logo = logo.resize((600, 200), Image.LANCZOS)
+    logo = logo.resize((800, 250), Image.LANCZOS)
     logo_img = ImageTk.PhotoImage(logo)
     logo_label = tk.Label(root, image=logo_img)
     logo_label.pack(pady=10)
@@ -122,9 +137,15 @@ def create_main_ui():
     select_file_button.pack(pady=10)
 
     # Start flashing process
-    start_button = tk.Button(root, text="Start Flashing", command=lambda: start_flashing(bus))
+    start_button = tk.Button(root, text="Start Flashing", command=lambda: start_flashing(bus, progress_bar, progress_label))
     start_button.pack(pady=10)
 
+    # Progress bar
+    progress_bar = ttk.Progressbar(root, orient="horizontal", length=400, mode="determinate")
+    progress_bar.pack(pady=10)
+    progress_label = tk.Label(root, text="Flashing: 0%")
+    progress_label.pack(pady=10)
+    
     root.mainloop()
 
 def create_splash_screen():

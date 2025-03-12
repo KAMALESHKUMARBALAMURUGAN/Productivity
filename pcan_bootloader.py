@@ -1,6 +1,9 @@
 import can
 import re
 import time
+import tkinter as tk
+from tkinter import filedialog, messagebox
+from PIL import Image, ImageTk
 
 def initialize_bus(channel="PCAN_USBBUS1", bitrate=500000):
     """Initialize the CAN bus using python-can for PCAN hardware."""
@@ -31,13 +34,11 @@ def parse_trc_file(filename):
             message_id = int(parts[3], 16)
             dlc = int(parts[4])
             data = [int(byte, 16) for byte in parts[5:5+dlc]]
-            # print("data", data)
             can_messages.append((timestamp, message_id, data))
 
     return can_messages
 
 def send_can_messages(bus, messages):
-    # print("messages", messages)
     """Send CAN messages through PCAN."""
     ignored_ids = {0x108, 0x112, 0x111, 0x113, 0x110, 0x10f, 0x109, 0x114}
     try:
@@ -48,40 +49,73 @@ def send_can_messages(bus, messages):
                 print(f"Ignoring message with ID={hex(message_id)}")
                 continue
             if message_id in last_sent_times:
-                # print("Not a new id")
                 time_offset = timestamp - last_sent_times[message_id]
             else:
-                # print("New id")
                 time_offset = timestamp - (time.time() - start_time)
             
             time_offset = time_offset / 1000
-            # print("time_offset", time_offset)
             time.sleep(time_offset)
             
             message = can.Message(arbitration_id=message_id, data=data, is_extended_id=True)
             bus.send(message)
-            # print(f"Sent message: ID={hex(message_id)}, Data={data}")
-            
             last_sent_times[message_id] = timestamp
     except Exception as e:
         print(f"Error sending CAN messages: {e}")
 
-if __name__ == "__main__": 
-    # Configuration
-    CHANNEL = "PCAN_USBBUS1"
-    BITRATE = 500000
-    TRC_FILE = r"C:\Users\kamalesh.kb\Trace\BOH1_REF.trc"  # Replace with your actual .trc file
+def check_mcu_available(bus):
+    """Check if the MCU is available by reading a specific CAN message."""
+    try:
+        message = bus.recv(timeout=1)
+        if message and message.arbitration_id == 0x108:
+            return True
+        return False
+    except Exception as e:
+        print(f"Error checking MCU availability: {e}")
+        return False
 
-    # Initialize the bus
-    bus = initialize_bus(CHANNEL, BITRATE)
+def select_binary_file():
+    """Open a file dialog to select the binary file."""
+    file_path = filedialog.askopenfilename(filetypes=[("Trace Files", "*.trc")])
+    return file_path
 
-    if bus:
-        # Parse the .trc file
-        can_messages = parse_trc_file(TRC_FILE)
+def start_flashing(bus, trc_file):
+    """Start the flashing process."""
+    can_messages = parse_trc_file(trc_file)
+    if can_messages:
+        send_can_messages(bus, can_messages)
+        messagebox.showinfo("Success", "Flashing process completed successfully.")
+    else:
+        messagebox.showerror("Error", "No CAN messages found in the selected file.")
 
-        if can_messages:
-            # Send the parsed CAN messages
-            send_can_messages(bus, can_messages)
-        
-        # Close the bus connection
-        bus.shutdown()
+def create_ui():
+    """Create the Tkinter UI."""
+    root = tk.Tk()
+    root.title("PCAN Bootloader")
+
+    # Display Lectrix logo
+    logo = Image.open(r"C:\Users\kamalesh.kb\KAMALESH_PRODUCTIVITY\Productivity\LECTRIX_LOGO.jpg")  # Replace with your actual logo file
+    logo = logo.resize((600, 200), Image.LANCZOS)
+    logo_img = ImageTk.PhotoImage(logo)
+    logo_label = tk.Label(root, image=logo_img)
+    logo_label.pack(pady=10)
+
+    # Check MCU availability
+    bus = initialize_bus()
+    if bus and check_mcu_available(bus):
+        mcu_status = tk.Label(root, text="MCU Available", fg="green")
+    else:
+        mcu_status = tk.Label(root, text="MCU Not Available", fg="red")
+    mcu_status.pack(pady=10)
+
+    # Select binary file
+    select_file_button = tk.Button(root, text="Select Binary File", command=lambda: select_binary_file())
+    select_file_button.pack(pady=10)
+
+    # Start flashing process
+    start_button = tk.Button(root, text="Start Flashing", command=lambda: start_flashing(bus, select_binary_file()))
+    start_button.pack(pady=10)
+
+    root.mainloop()
+
+if __name__ == "__main__":
+    create_ui()

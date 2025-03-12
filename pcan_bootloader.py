@@ -5,10 +5,13 @@ import tkinter as tk
 from tkinter import filedialog, messagebox
 from PIL import Image, ImageTk
 
+# Global variable to store the selected file path
+selected_file_path = None
+
 def initialize_bus(channel="PCAN_USBBUS1", bitrate=500000):
     """Initialize the CAN bus using python-can for PCAN hardware."""
     try:
-        bus = can.interface.Bus(channel=channel, bustype='pcan', bitrate=bitrate)
+        bus = can.interface.Bus(channel=channel, interface='pcan', bitrate=bitrate)
         print("PCAN bus initialized successfully.")
         return bus
     except Exception as e:
@@ -66,7 +69,7 @@ def check_mcu_available(bus):
     """Check if the MCU is available by reading a specific CAN message."""
     try:
         message = bus.recv(timeout=1)
-        if message and message.arbitration_id == 0x108:
+        if message and message.arbitration_id == 0x11D:
             return True
         return False
     except Exception as e:
@@ -75,20 +78,27 @@ def check_mcu_available(bus):
 
 def select_binary_file():
     """Open a file dialog to select the binary file."""
-    file_path = filedialog.askopenfilename(filetypes=[("Trace Files", "*.trc")])
-    return file_path
+    global selected_file_path
+    selected_file_path = filedialog.askopenfilename(filetypes=[("Trace Files", "*.trc")])
+    print(f"Selected file: {selected_file_path}")
 
-def start_flashing(bus, trc_file):
+def start_flashing(bus):
     """Start the flashing process."""
-    can_messages = parse_trc_file(trc_file)
+    if not selected_file_path:
+        messagebox.showerror("Error", "No binary file selected.")
+        return
+
+    can_messages = parse_trc_file(selected_file_path)
+    print(f"Found {len(can_messages)} CAN messages in the file.")
+    print("Starting flashing process...")
     if can_messages:
         send_can_messages(bus, can_messages)
         messagebox.showinfo("Success", "Flashing process completed successfully.")
     else:
         messagebox.showerror("Error", "No CAN messages found in the selected file.")
 
-def create_ui():
-    """Create the Tkinter UI."""
+def create_main_ui():
+    """Create the main Tkinter UI."""
     root = tk.Tk()
     root.title("PCAN Bootloader")
 
@@ -108,14 +118,36 @@ def create_ui():
     mcu_status.pack(pady=10)
 
     # Select binary file
-    select_file_button = tk.Button(root, text="Select Binary File", command=lambda: select_binary_file())
+    select_file_button = tk.Button(root, text="Select Binary File", command=select_binary_file)
     select_file_button.pack(pady=10)
 
     # Start flashing process
-    start_button = tk.Button(root, text="Start Flashing", command=lambda: start_flashing(bus, select_binary_file()))
+    start_button = tk.Button(root, text="Start Flashing", command=lambda: start_flashing(bus))
     start_button.pack(pady=10)
 
     root.mainloop()
 
+def create_splash_screen():
+    """Create the splash screen."""
+    splash = tk.Tk()
+    splash.title("Splash Screen")
+    splash.attributes('-fullscreen', True)
+
+    # Get screen width and height
+    screen_width = splash.winfo_screenwidth()
+    screen_height = splash.winfo_screenheight()
+
+    # Display Lectrix logo
+    logo = Image.open(r"C:\Users\kamalesh.kb\KAMALESH_PRODUCTIVITY\Productivity\LECTRIX_LOGO.jpg")  # Replace with your actual logo file
+    logo = logo.resize((screen_width, screen_height), Image.HAMMING)
+    logo_img = ImageTk.PhotoImage(logo)
+    logo_label = tk.Label(splash, image=logo_img)
+    logo_label.pack(expand=True)
+
+    # Close splash screen and open main UI after 5 seconds
+    splash.after(2000, lambda: (splash.destroy(), create_main_ui()))
+
+    splash.mainloop()
+
 if __name__ == "__main__":
-    create_ui()
+    create_splash_screen()
